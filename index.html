@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>나만의 독서 기록장</title>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gaegu&display=swap');
+
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; touch-action: manipulation; }
+        .serif-font { font-family: 'Nanum Myeongjo', serif; }
+        .hand-font { font-family: 'Gaegu', cursive; }
+
+        .note-lines {
+            background-image: linear-gradient(transparent 29px, #e2e8f0 30px);
+            background-size: 100% 30px;
+            line-height: 30px;
+            background-attachment: local;
+        }
+        .note-blank { background-color: #fff; line-height: 1.8; }
+
+        .book-shadow { box-shadow: 2px 4px 10px rgba(0,0,0,0.15); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .lyrics-box {
+            background: linear-gradient(135deg,#fdf4ff 0%, #eef2ff 100%);
+            border: 1px dashed #c7d2fe;
+            white-space: pre-line;
+        }
+
+        .chip {
+            transition: all .15s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useMemo } = React;
+
+        /* ============================================================
+           아이콘
+        ============================================================ */
+        const Icon = ({ name, className = "" }) => {
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {name === 'book' && <g><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></g>}
+                    {name === 'camera' && <g><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>}
+                    {name === 'tag' && <g><path d="M20.59 13.41 11 3.83 3 3l.83 8L13.41 20.6a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.84Z"/><circle cx="7.5" cy="7.5" r="1"/></g>}
+                    {name === 'music' && <g><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></g>}
+                    {name === 'sparkles' && <g><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></g>}
+                    {name === 'save' && <g><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></g>}
+                    {name === 'download' && <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></g>}
+                    {name === 'refresh' && <g><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g>}
+                    {name === 'pen' && <g><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></g>}
+                    {name === 'library' && <g><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></g>}
+                    {name === 'trash' && <g><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></g>}
+                    {name === 'x' && <g><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></g>}
+                    {name === 'chevron-left' && <path d="m15 18-6-6 6-6"/>}
+                </svg>
+            );
+        };
+
+        /* ============================================================
+           해시태그 단어 창고 (여기에 항목만 추가하면 자동으로 화면/가사에 반영됨)
+        ============================================================ */
+        const THEME_TAGS = ['우정', '가족', '성장', '사랑', '사회', '정의', '자연', '꿈', '도전', '치유'];
+        const GENRE_TAGS = ['소설', '에세이', '성장', '사회', '시', '과학'];
+        const EMOTION_TAGS = ['뭉클함', '설렘', '씁쓸함', '통쾌함', '잔잔함'];
+
+        // 감정 태그별 단어 창고 (감정 슬롯에 끼워 넣을 표현들) - 새 감정을 추가하면 여기에도 배열을 추가해주세요.
+        const EMOTION_WORDS = {
+            '뭉클함': ['가슴이 뜨거워져', '눈시울이 붉어져', '마음이 젖어들어', '숨이 턱 막혀와', '가슴 한켠이 시려와'],
+            '설렘': ['심장이 두근거려', '발걸음이 가벼워져', '온 세상이 반짝여', '두 눈이 빛나기 시작해', '가슴이 콩닥거려'],
+            '씁쓸함': ['마음 한 구석이 저려와', '입안이 씁쓸해져', '가슴이 먹먹해져', '눈앞이 흐려져', '발걸음이 무거워져'],
+            '통쾌함': ['속이 뻥 뚫려', '어깨가 으쓱해져', '주먹을 불끈 쥐어', '큰소리로 외치고 싶어져', '온몸에 힘이 솟아나'],
+            '잔잔함': ['마음이 고요해져', '숨을 천천히 내쉬어', '창밖을 가만히 바라봐', '조용히 눈을 감아', '천천히 페이지를 덮어'],
+            '기본': ['마음이 움직여', '가슴에 남아', '오래도록 생각나', '마음이 일렁여']
+        };
+
+        // 장르 태그별 가사 템플릿 (도입부 / 후렴구 / 마무리구). 새 장르를 추가하면 여기에도 세트를 추가해주세요.
+        // 자리표시자: {title}=책 제목, {quote}=인상깊은 문장, {emotionWord}=감정 단어
+        const GENRE_TEMPLATES = {
+            '소설': {
+                intro: [
+                    '『{title}』을 펼치던 그 밤,\n페이지 위로 낯선 이야기가 걸어 들어와',
+                    '한 장 한 장 넘길 때마다,\n또 다른 세계의 문이 열려',
+                    '{title}, 그 속의 목소리가\n내 귀에 가만히 속삭여와'
+                ],
+                chorus: [
+                    '"{quote}" 그 한 줄에\n{emotionWord}\n책장을 덮어도 남아있는 이야기',
+                    '{emotionWord}\n"{quote}" 그 문장을 따라\n나도 함께 걸어가',
+                    '이야기 속을 헤매다가\n{emotionWord}\n"{quote}" 거기서 멈춰서'
+                ],
+                outro: [
+                    '마지막 페이지를 덮어도\n이야기는 내 안에서 계속돼',
+                    '책은 닫혔지만\n이야기는 아직 끝나지 않았어',
+                    '다시 첫 장으로 돌아가고 싶은 밤,\n{title}'
+                ]
+            },
+            '에세이': {
+                intro: [
+                    '누군가의 하루가 담긴 글,\n{title}을 읽어 내려가며',
+                    '조용한 문장들 사이로,\n내 이야기가 겹쳐 보여',
+                    '{title}, 그 담담한 고백이\n내게도 말을 걸어와'
+                ],
+                chorus: [
+                    '"{quote}" 라는 말에\n{emotionWord}\n나도 몰래 고개를 끄덕여',
+                    '{emotionWord}\n"{quote}" 그 문장이\n오늘의 내게 건네는 말',
+                    '멀리서 온 목소리인데\n{emotionWord}\n꼭 내 얘기 같아서'
+                ],
+                outro: [
+                    '책을 덮고 창밖을 보니\n조금은 다른 오늘이 보여',
+                    '{title}을 읽은 오늘,\n나에게도 짧은 위로가 남아',
+                    '누군가의 일상이\n내 하루에도 스며들어'
+                ]
+            },
+            '성장': {
+                intro: [
+                    '서툴렀던 어제를 지나,\n{title} 속 발걸음을 따라가',
+                    '넘어지고 또 일어서는 이야기,\n{title}이 내 손을 잡아줘',
+                    '조금씩 자라나는 마음,\n그 곁에서 나도 함께 걸어'
+                ],
+                chorus: [
+                    '"{quote}" 그 말이\n{emotionWord}\n나도 한 뼘 자라난 것 같아',
+                    '{emotionWord}\n"{quote}" 그 문장을 품고\n오늘도 조금씩 나아가',
+                    '넘어져도 괜찮다고\n{emotionWord}\n책이 내게 말해줘'
+                ],
+                outro: [
+                    '어제보다 조금 더 단단해진 나,\n{title} 덕분이야',
+                    '완벽하지 않아도 괜찮아,\n오늘도 한 걸음 나아가니까',
+                    '이 이야기와 함께\n나도 자라고 있어'
+                ]
+            },
+            '사회': {
+                intro: [
+                    '눈감고 있던 세상이,\n{title}을 통해 보이기 시작해',
+                    '당연했던 것들이,\n더 이상 당연하지 않아져',
+                    '{title}이 던진 질문 하나가\n내 마음을 두드려'
+                ],
+                chorus: [
+                    '"{quote}" 그 말 앞에서\n{emotionWord}\n나는 잠시 멈춰서',
+                    '{emotionWord}\n"{quote}" 그 문장이\n오래도록 마음에 남아',
+                    '외면할 수 없는 이야기 앞에\n{emotionWord}\n눈을 크게 떠봐'
+                ],
+                outro: [
+                    '책을 덮어도\n질문은 계속 남아있어',
+                    '조금 다른 눈으로\n세상을 다시 바라봐',
+                    '{title}이 건넨 이야기,\n잊지 않고 기억할게'
+                ]
+            },
+            '기본': {
+                intro: [
+                    '『{title}』을 읽어 내려가던 그 시간,\n조용히 마음이 움직이기 시작해',
+                    '책장을 넘길 때마다,\n낯선 감정이 스며들어',
+                    '{title}, 그 안의 이야기가\n내게 말을 걸어와'
+                ],
+                chorus: [
+                    '"{quote}" 그 한 줄에\n{emotionWord}\n오래도록 마음에 남아',
+                    '{emotionWord}\n"{quote}" 그 문장을 따라\n나도 함께 걸어가',
+                    '책 속 어딘가에서\n{emotionWord}\n잠시 멈춰 서 있어'
+                ],
+                outro: [
+                    '책장을 덮어도\n이야기는 내 안에 남아있어',
+                    '{title}을 읽은 오늘,\n조금은 다른 내가 된 것 같아',
+                    '다시 이 책을 펼치고 싶은 밤'
+                ]
+            }
+        };
+
+        function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function toggleInArray(arr, item) {
+            return arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item];
+        }
+        function fillTemplate(str, vars) {
+            return Object.keys(vars).reduce((acc, key) => acc.split('{' + key + '}').join(vars[key]), str);
+        }
+
+        function generateLyrics({ title, quote, emotionTags, genreTags }) {
+            const emotion = emotionTags.length ? pickRandom(emotionTags) : '기본';
+            const genre = genreTags.length ? pickRandom(genreTags) : '기본';
+            const emotionWord = pickRandom(EMOTION_WORDS[emotion] || EMOTION_WORDS['기본']);
+            const templates = GENRE_TEMPLATES[genre] || GENRE_TEMPLATES['기본'];
+            const vars = {
+                title: title || '이 책',
+                quote: (quote && quote.trim()) ? quote.trim() : '그 한 문장',
+                emotionWord
+            };
+            const intro = fillTemplate(pickRandom(templates.intro), vars);
+            const chorus = fillTemplate(pickRandom(templates.chorus), vars);
+            const outro = fillTemplate(pickRandom(templates.outro), vars);
+            return `${intro}\n\n${chorus}\n\n${outro}`;
+        }
+
+        /* ============================================================
+           이미지 리사이즈 (localStorage 용량 절약용)
+        ============================================================ */
+        function resizeImage(file, maxSize = 900, quality = 0.8) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > height && width > maxSize) {
+                            height = Math.round(height * (maxSize / width));
+                            width = maxSize;
+                        } else if (height > maxSize) {
+                            width = Math.round(width * (maxSize / height));
+                            height = maxSize;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        /* ============================================================
+           로컬 저장소
+        ============================================================ */
+        const STORAGE_KEY = 'my-reading-diary-entries';
+        function loadEntries() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+            catch (e) { return []; }
+        }
+        function persistEntries(entries) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        }
+
+        /* ============================================================
+           칩(태그 선택 버튼) 컴포넌트
+        ============================================================ */
+        const ChipGroup = ({ label, options, selected, onToggle, colorClass }) => (
+            <div>
+                <p className="text-xs font-bold text-slate-500 mb-1.5">{label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                    {options.map(opt => {
+                        const isOn = selected.includes(opt);
+                        return (
+                            <button
+                                key={opt}
+                                type="button"
+                                onClick={() => onToggle(opt)}
+                                className={`chip px-3 py-1 rounded-full text-xs font-bold border ${isOn ? colorClass : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+                            >
+                                #{opt}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+
+        /* ============================================================
+           결과 카드 (작성 화면과 서재 상세보기에서 공용으로 사용)
+        ============================================================ */
+        const ResultCard = ({ entry, cardRef, onRegenerateLyrics }) => {
+            const allTags = [...entry.themeTags, ...entry.genreTags, ...entry.emotionTags, ...entry.freeTags];
+            return (
+                <div ref={cardRef} className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div className="p-6 bg-[#fdfbf7] border-b border-slate-100">
+                        <p className="text-[10px] text-indigo-600 font-bold mb-1">나의 독서 기록</p>
+                        <h3 className="font-bold text-xl leading-tight mb-1 text-slate-900 serif-font break-keep">{entry.title || '제목 없음'}</h3>
+                        <p className="text-xs text-slate-500">{entry.author || '작가 미상'} {entry.publisher ? `| ${entry.publisher}` : ''}</p>
+                    </div>
+
+                    {entry.photo && (
+                        <div className="px-6 pt-4">
+                            <img src={entry.photo} alt="독서 기록 사진" className="w-full rounded-lg shadow-sm object-cover max-h-60" />
+                        </div>
+                    )}
+
+                    {entry.quote && (
+                        <div className="px-6 pt-4">
+                            <p className="serif-font italic text-sm text-slate-700 border-l-4 border-indigo-200 pl-3 leading-relaxed break-keep">
+                                “{entry.quote}”
+                            </p>
+                        </div>
+                    )}
+
+                    {entry.feeling && (
+                        <div className="px-6 pt-4">
+                            <p className="text-[11px] font-bold text-slate-400 mb-1">그때의 느낌</p>
+                            <p className="note-lines text-sm text-slate-700 whitespace-pre-line break-keep px-1">{entry.feeling}</p>
+                        </div>
+                    )}
+
+                    {allTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 px-6 pt-4">
+                            {allTags.map((tag, i) => (
+                                <span key={i} className="text-[10px] text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">#{tag}</span>
+                            ))}
+                        </div>
+                    )}
+
+                    {entry.wantLyrics && entry.lyrics && (
+                        <div className="mx-6 mt-4 mb-6 p-4 rounded-xl lyrics-box">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-bold text-indigo-600 flex items-center gap-1"><Icon name="music" className="w-3.5 h-3.5"/> 나만의 노래 가사</p>
+                                {onRegenerateLyrics && (
+                                    <button onClick={onRegenerateLyrics} className="text-[10px] text-indigo-500 flex items-center gap-0.5 font-bold active:scale-95">
+                                        <Icon name="refresh" className="w-3 h-3"/> 다시 만들기
+                                    </button>
+                                )}
+                            </div>
+                            <p className="hand-font text-base text-slate-700 leading-relaxed break-keep">{entry.lyrics}</p>
+                            <p className="text-[9px] text-slate-400 mt-2">* 선택한 해시태그를 바탕으로 자동 생성된 가사예요.</p>
+                        </div>
+                    )}
+
+                    {!entry.wantLyrics && <div className="h-6"></div>}
+
+                    <div className="h-8 bg-slate-50 border-t border-slate-100 flex items-center justify-center text-[10px] text-slate-400 font-mono">
+                        나만의 독서 기록장
+                    </div>
+                </div>
+            );
+        };
+
+        /* ============================================================
+           메인 앱
+        ============================================================ */
+        const App = () => {
+            const [mode, setMode] = useState('write'); // write | result | library
+            const [entries, setEntries] = useState(loadEntries());
+            const [viewingEntry, setViewingEntry] = useState(null);
+            const cardRef = useRef(null);
+
+            const [title, setTitle] = useState('');
+            const [author, setAuthor] = useState('');
+            const [publisher, setPublisher] = useState('');
+            const [quote, setQuote] = useState('');
+            const [feeling, setFeeling] = useState('');
+            const [photo, setPhoto] = useState(null);
+            const [themeTags, setThemeTags] = useState([]);
+            const [genreTags, setGenreTags] = useState([]);
+            const [emotionTags, setEmotionTags] = useState([]);
+            const [freeTagsInput, setFreeTagsInput] = useState('');
+            const [wantLyrics, setWantLyrics] = useState(false);
+
+            const resetForm = () => {
+                setTitle(''); setAuthor(''); setPublisher(''); setQuote(''); setFeeling('');
+                setPhoto(null); setThemeTags([]); setGenreTags([]); setEmotionTags([]);
+                setFreeTagsInput(''); setWantLyrics(false);
+            };
+
+            const handlePhotoUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const dataUrl = await resizeImage(file);
+                setPhoto(dataUrl);
+            };
+
+            const buildEntry = (lyricsOverride) => {
+                const freeTags = freeTagsInput.split(/\s+/).map(t => t.replace(/^#/, '')).filter(Boolean);
+                const lyrics = wantLyrics
+                    ? (lyricsOverride || generateLyrics({ title, quote, emotionTags, genreTags }))
+                    : '';
+                return {
+                    id: Date.now().toString(),
+                    title, author, publisher, quote, feeling, photo,
+                    themeTags, genreTags, emotionTags, freeTags,
+                    wantLyrics, lyrics,
+                    createdAt: new Date().toISOString()
+                };
+            };
+
+            const handleSubmit = () => {
+                if (!title.trim()) { alert('책 제목을 입력해주세요.'); return; }
+                const entry = buildEntry();
+                setViewingEntry(entry);
+                setMode('result');
+            };
+
+            const handleRegenerateLyrics = () => {
+                setViewingEntry(prev => ({
+                    ...prev,
+                    lyrics: generateLyrics({ title: prev.title, quote: prev.quote, emotionTags: prev.emotionTags, genreTags: prev.genreTags })
+                }));
+            };
+
+            const handleSaveToLibrary = () => {
+                const next = [viewingEntry, ...entries];
+                setEntries(next);
+                persistEntries(next);
+                alert('내 서재에 저장했어요!');
+            };
+
+            const handleDeleteEntry = (id) => {
+                if (!confirm('이 기록을 삭제할까요?')) return;
+                const next = entries.filter(e => e.id !== id);
+                setEntries(next);
+                persistEntries(next);
+            };
+
+            const handleDownloadImage = () => {
+                if (!cardRef.current) return;
+                html2canvas(cardRef.current, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `${(viewingEntry.title || 'reading-diary').replace(/\s+/g, '_')}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            };
+
+            const handleNewEntry = () => {
+                resetForm();
+                setViewingEntry(null);
+                setMode('write');
+            };
+
+            /* ---------------- 작성 화면 ---------------- */
+            const WriteScreen = () => (
+                <div className="max-w-md mx-auto p-4 pb-28 animate-slide-up">
+                    <div className="bg-white rounded-2xl shadow-sm p-5 space-y-5">
+                        <div>
+                            <p className="text-xs font-bold text-slate-500 mb-1.5">책 정보</p>
+                            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="책 제목" className="w-full text-sm border-b border-slate-200 py-2 outline-none focus:border-indigo-400 mb-2" />
+                            <div className="flex gap-2">
+                                <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="작가" className="flex-1 text-sm border-b border-slate-200 py-2 outline-none focus:border-indigo-400" />
+                                <input value={publisher} onChange={e => setPublisher(e.target.value)} placeholder="출판사" className="flex-1 text-sm border-b border-slate-200 py-2 outline-none focus:border-indigo-400" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-bold text-slate-500 mb-1.5">가장 인상 깊은 문장</p>
+                            <textarea value={quote} onChange={e => setQuote(e.target.value)} placeholder="책 속 한 문장을 옮겨 적어보세요" rows={2} className="w-full text-sm outline-none border border-slate-200 rounded-lg p-2 resize-none focus:border-indigo-400" />
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-bold text-slate-500 mb-1.5">그 문장을 읽었을 때의 느낌</p>
+                            <textarea value={feeling} onChange={e => setFeeling(e.target.value)} placeholder="어떤 생각과 감정이 들었나요?" rows={4} className="w-full note-lines text-sm outline-none border border-slate-200 rounded-lg p-2 resize-none focus:border-indigo-400" />
+                        </div>
+
+                        <div>
+                            <label htmlFor="photo-upload" className="flex items-center gap-2 cursor-pointer text-slate-500">
+                                <Icon name="camera" className="w-4 h-4" />
+                                <span className="text-xs">{photo ? '사진이 선택되었습니다 (변경하려면 클릭)' : '사진이나 그림 올리기'}</span>
+                            </label>
+                            <input id="photo-upload" type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+                            {photo && (
+                                <div className="relative mt-2 group">
+                                    <img src={photo} className="w-full max-h-48 object-cover rounded-lg" />
+                                    <button onClick={() => setPhoto(null)} className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-1"><Icon name="x" className="w-3.5 h-3.5" /></button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-3 pt-2 border-t border-slate-100">
+                            <ChipGroup label="주제" options={THEME_TAGS} selected={themeTags} onToggle={t => setThemeTags(p => toggleInArray(p, t))} colorClass="bg-amber-50 border-amber-300 text-amber-600" />
+                            <ChipGroup label="장르" options={GENRE_TAGS} selected={genreTags} onToggle={t => setGenreTags(p => toggleInArray(p, t))} colorClass="bg-sky-50 border-sky-300 text-sky-600" />
+                            <ChipGroup label="감정" options={EMOTION_TAGS} selected={emotionTags} onToggle={t => setEmotionTags(p => toggleInArray(p, t))} colorClass="bg-rose-50 border-rose-300 text-rose-600" />
+                            <div>
+                                <p className="text-xs font-bold text-slate-500 mb-1.5">나만의 해시태그</p>
+                                <input value={freeTagsInput} onChange={e => setFreeTagsInput(e.target.value)} placeholder="#나만의태그 #한줄평 (띄어쓰기로 구분)" className="w-full text-xs border-b border-slate-200 py-2 outline-none focus:border-indigo-400" />
+                            </div>
+                        </div>
+
+                        <label className="flex items-center gap-3 pt-3 border-t border-slate-100 cursor-pointer">
+                            <input type="checkbox" checked={wantLyrics} onChange={e => setWantLyrics(e.target.checked)} className="w-5 h-5 accent-indigo-600" />
+                            <span className="text-sm font-bold text-slate-700 flex items-center gap-1"><Icon name="sparkles" className="w-4 h-4 text-indigo-500" /> 이 책과 어울리는 나만의 노래 가사 만들기</span>
+                        </label>
+                    </div>
+
+                    <button onClick={handleSubmit} className="w-full mt-4 bg-indigo-600 text-white p-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex items-center justify-center gap-2">
+                        <Icon name="pen" className="w-4 h-4" /> 기록 완성하기
+                    </button>
+                </div>
+            );
+
+            /* ---------------- 결과 화면 ---------------- */
+            const ResultScreen = () => (
+                <div className="max-w-md mx-auto p-4 pb-28 animate-slide-up">
+                    <ResultCard entry={viewingEntry} cardRef={cardRef} onRegenerateLyrics={viewingEntry.wantLyrics ? handleRegenerateLyrics : null} />
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                        <button onClick={handleNewEntry} className="bg-slate-100 text-slate-600 p-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1 active:bg-slate-200"><Icon name="chevron-left" className="w-4 h-4" />새로 쓰기</button>
+                        <button onClick={handleDownloadImage} className="bg-slate-100 text-indigo-600 p-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1 active:bg-slate-200"><Icon name="download" className="w-4 h-4" />이미지 저장</button>
+                        <button onClick={handleSaveToLibrary} className="bg-indigo-600 text-white p-3 rounded-xl font-bold text-xs flex flex-col items-center gap-1 active:scale-95 shadow-lg shadow-indigo-200"><Icon name="save" className="w-4 h-4" />서재에 저장</button>
+                    </div>
+                </div>
+            );
+
+            /* ---------------- 서재 화면 ---------------- */
+            const LibraryScreen = () => (
+                <div className="max-w-md mx-auto p-4 pb-28 animate-slide-up">
+                    {entries.length === 0 ? (
+                        <div className="text-center py-20 text-slate-400 text-sm">아직 저장된 기록이 없어요.<br/>기록을 작성하고 서재에 저장해보세요!</div>
+                    ) : (
+                        <div className="space-y-3">
+                            {entries.map(entry => (
+                                <div key={entry.id} className="bg-white rounded-xl shadow-sm p-3 flex gap-3 items-center">
+                                    {entry.photo ? (
+                                        <img src={entry.photo} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0"><Icon name="book" className="w-6 h-6 text-indigo-300" /></div>
+                                    )}
+                                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setViewingEntry(entry); setMode('result'); }}>
+                                        <p className="font-bold text-sm text-slate-800 truncate">{entry.title}</p>
+                                        <p className="text-xs text-slate-400 truncate">{entry.author}</p>
+                                    </div>
+                                    <button onClick={() => handleDeleteEntry(entry.id)} className="text-slate-300 p-2"><Icon name="trash" className="w-4 h-4" /></button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen bg-slate-100">
+                    <div className="bg-white p-4 shadow-sm sticky top-0 z-10 flex items-center justify-center gap-2">
+                        <Icon name="book" className="text-indigo-600 w-5 h-5" />
+                        <h1 className="font-bold text-slate-800 serif-font">나만의 독서 기록장</h1>
+                    </div>
+
+                    {mode === 'write' && <WriteScreen />}
+                    {mode === 'result' && viewingEntry && <ResultScreen />}
+                    {mode === 'library' && <LibraryScreen />}
+
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-50 shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">
+                        <button onClick={() => { resetForm(); setViewingEntry(null); setMode('write'); }} className={`flex-1 py-3 flex flex-col items-center gap-1 text-xs font-bold ${mode === 'write' ? 'text-indigo-600' : 'text-slate-400'}`}>
+                            <Icon name="pen" className="w-5 h-5" />기록쓰기
+                        </button>
+                        <button onClick={() => setMode('library')} className={`flex-1 py-3 flex flex-col items-center gap-1 text-xs font-bold ${mode === 'library' ? 'text-indigo-600' : 'text-slate-400'}`}>
+                            <Icon name="library" className="w-5 h-5" />내 서재
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
