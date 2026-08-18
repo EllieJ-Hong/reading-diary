@@ -540,9 +540,9 @@
                         <h1 className="font-bold text-slate-800 serif-font">나만의 독서 기록장</h1>
                     </div>
 
-                    {mode === 'write' && <WriteScreen />}
-                    {mode === 'result' && viewingEntry && <ResultScreen />}
-                    {mode === 'library' && <LibraryScreen />}
+                    {mode === 'write' && WriteScreen()}
+                    {mode === 'result' && viewingEntry && ResultScreen()}
+                    {mode === 'library' && LibraryScreen()}
 
                     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-50 shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">
                         <button onClick={() => { resetForm(); setViewingEntry(null); setMode('write'); }} className={`flex-1 py-3 flex flex-col items-center gap-1 text-xs font-bold ${mode === 'write' ? 'text-indigo-600' : 'text-slate-400'}`}>
