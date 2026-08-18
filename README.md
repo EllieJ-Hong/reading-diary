@@ -16,4 +16,4 @@
 
 ## 📸 스크린샷
 
-<!-- ![스크린샷](./screenshot.png) -->
+![스크린샷](./screenshot.png)
